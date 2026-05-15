@@ -85,6 +85,27 @@ export const HysteriaProtocolOptionsSchema = z.object({
     version: z.int(),
 });
 
+export const FedarishaTuningOptionsSchema = z.object({
+    idleTimeoutSec: z.number().int().nullable(),
+    pollIntervalMs: z.number().int().nullable(),
+    writeIntervalMs: z.number().int().nullable(),
+    maxFileSizeBytes: z.number().int().nullable(),
+});
+
+export const FedarishaProtocolOptionsSchema = z.object({
+    storage: z.object({
+        type: z.string(),
+        bucket: z.string(),
+        endpoint: z.string(),
+        region: z.string(),
+        prefix: z.string(),
+        sessionsDir: z.string().nullable(),
+        accessKey: z.string(),
+        secretKey: z.string(),
+    }),
+    tuning: FedarishaTuningOptionsSchema.nullable(),
+});
+
 export const HysteriaTransportOptionsSchema = z.object({
     version: z.int(),
     auth: z.string(),
@@ -131,11 +152,17 @@ const HysteriaProtocolSchema = z.object({
     protocolOptions: HysteriaProtocolOptionsSchema,
 });
 
+const FedarishaProtocolSchema = z.object({
+    protocol: z.literal('fedarisha'),
+    protocolOptions: FedarishaProtocolOptionsSchema,
+});
+
 export const ProtocolVariantSchema = z.discriminatedUnion('protocol', [
     VlessProtocolSchema,
     TrojanProtocolSchema,
     ShadowsocksProtocolSchema,
     HysteriaProtocolSchema,
+    FedarishaProtocolSchema,
 ]);
 
 const TcpTransportSchema = z.object({
@@ -223,12 +250,13 @@ export const ResolvedProxyConfigSchema = z.object({
     address: z.string(),
     port: z.int().positive(),
 
-    protocol: z.enum(['vless', 'trojan', 'shadowsocks', 'hysteria']),
+    protocol: z.enum(['vless', 'trojan', 'shadowsocks', 'hysteria', 'fedarisha']),
     protocolOptions: z.union([
         VlessProtocolOptionsSchema,
         TrojanProtocolOptionsSchema,
         ShadowsocksProtocolOptionsSchema,
         HysteriaProtocolOptionsSchema,
+        FedarishaProtocolOptionsSchema,
     ]),
 
     transport: z.enum(['tcp', 'xhttp', 'ws', 'httpupgrade', 'grpc', 'kcp', 'hysteria']),

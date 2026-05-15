@@ -4,8 +4,10 @@ WORKDIR /opt/frontend
 ARG BRANCH=main
 ARG FRONTEND_URL=https://github.com/remnawave/frontend/releases/latest/download/remnawave-frontend.zip
 
-RUN apk add --no-cache curl unzip ca-certificates \
-    && curl -L ${FRONTEND_URL} -o frontend.zip \
+RUN --mount=type=secret,id=clone_token apk add --no-cache curl unzip ca-certificates \
+    && AUTH_HEADER="" \
+    && if [ -s /run/secrets/clone_token ]; then AUTH_HEADER="Authorization: token $(cat /run/secrets/clone_token)"; fi \
+    && curl -fL -H "$AUTH_HEADER" ${FRONTEND_URL} -o frontend.zip \
     && unzip frontend.zip -d frontend_temp \
     && curl -L https://validator.remna.dev/wasm_exec.js -o frontend_temp/dist/assets/wasm_exec.js \
     && curl -L https://validator.remna.dev/xray.schema.json -o frontend_temp/dist/assets/xray.schema.json \

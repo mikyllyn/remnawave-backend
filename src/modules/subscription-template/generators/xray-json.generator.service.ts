@@ -19,12 +19,14 @@ type VlessConfig = Extract<ResolvedProxyConfig, { protocol: 'vless' }>;
 type TrojanConfig = Extract<ResolvedProxyConfig, { protocol: 'trojan' }>;
 type ShadowsocksConfig = Extract<ResolvedProxyConfig, { protocol: 'shadowsocks' }>;
 type HysteriaConfig = Extract<ResolvedProxyConfig, { protocol: 'hysteria' }>;
+type FedarishaConfig = Extract<ResolvedProxyConfig, { protocol: 'fedarisha' }>;
 
 type ProtocolBuilderMap = {
     vless: (host: VlessConfig) => object;
     trojan: (host: TrojanConfig) => object;
     shadowsocks: (host: ShadowsocksConfig) => object;
     hysteria: (host: HysteriaConfig) => object;
+    fedarisha: (host: FedarishaConfig) => object;
 };
 
 type WsConfig = Extract<ResolvedProxyConfig, { transport: 'ws' }>;
@@ -88,6 +90,16 @@ const PROTOCOL_BUILDERS: ProtocolBuilderMap = {
             },
         ],
     }),
+    // Fedarisha outbound carries S3 storage creds + tuning directly. No
+    // address/port — there's no network endpoint, the xray plugin polls the
+    // bucket. streamSettings is omitted entirely (see buildOutbound).
+    fedarisha: (host) => {
+        const settings: Record<string, unknown> = {
+            storage: host.protocolOptions.storage,
+        };
+        if (host.protocolOptions.tuning) settings.tuning = host.protocolOptions.tuning;
+        return settings;
+    },
 };
 
 const TRANSPORT_BUILDERS: TransportBuilderMap = {
@@ -284,8 +296,12 @@ export class XrayJsonGeneratorService {
             tag,
             protocol: host.protocol,
             settings: this.buildProtocolSettings(host),
-            streamSettings: this.buildStreamSettings(host),
         };
+
+        // Fedarisha is S3-backed: no transport, no TLS, no streamSettings.
+        if (host.protocol !== 'fedarisha') {
+            outbound.streamSettings = this.buildStreamSettings(host);
+        }
 
         if (isNonEmptyObject(host.mux)) {
             // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -327,6 +343,8 @@ export class XrayJsonGeneratorService {
                 return PROTOCOL_BUILDERS.shadowsocks(host);
             case 'hysteria':
                 return PROTOCOL_BUILDERS.hysteria(host);
+            case 'fedarisha':
+                return PROTOCOL_BUILDERS.fedarisha(host);
         }
     }
 

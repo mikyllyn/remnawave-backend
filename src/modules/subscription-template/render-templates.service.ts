@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 
 import { SUBSCRIPTION_CONFIG_TYPES } from './constants/config-types';
 import { ClashGeneratorService } from './generators/clash.generator.service';
@@ -15,6 +15,8 @@ import {
 
 @Injectable()
 export class RenderTemplatesService {
+    private readonly logger = new Logger(RenderTemplatesService.name);
+
     constructor(
         private readonly resolveProxyConfigService: ResolveProxyConfigService,
         private readonly mihomoGeneratorService: MihomoGeneratorService,
@@ -29,10 +31,14 @@ export class RenderTemplatesService {
         subscription: string;
     }> {
         const { srrContext, user, hosts, hostsOverrides, fallbackOptions } = params;
+        const supportedHosts = this.filterHostsByClientCapabilities(
+            hosts,
+            srrContext.supportsFedarisha,
+        );
 
         const formattedHosts = await this.resolveProxyConfigService.resolveProxyConfig({
             subscriptionSettings: srrContext.subscriptionSettings,
-            hosts,
+            hosts: supportedHosts,
             user,
             hostsOverrides,
             fallbackOptions,
@@ -104,6 +110,20 @@ export class RenderTemplatesService {
             default:
                 return { subscription: '', contentType: '' };
         }
+    }
+
+    private filterHostsByClientCapabilities(
+        hosts: HostWithRawInbound[],
+        supportsFedarisha: boolean,
+    ): HostWithRawInbound[] {
+        if (supportsFedarisha) {
+            return hosts;
+        }
+
+        return hosts.filter((host) => {
+            const inbound = host.rawInbound as { protocol?: string } | null;
+            return inbound?.protocol !== 'fedarisha';
+        });
     }
 
     public async generateRawSubscription(

@@ -9,6 +9,7 @@ import { AuthModule } from './auth/auth.module';
 import { ConfigProfileModule } from './config-profiles/config-profile.module';
 import { ConnectionsModule } from './connections/connections.module';
 import { ExternalSquadModule } from './external-squads/external-squads.module';
+import { FedarishaProvisioningModule } from './fedarisha-provisioning/fedarisha-provisioning.module';
 import { HostsModule } from './hosts/hosts.module';
 import { HwidUserDevicesModule } from './hwid-user-devices/hwid-user-devices.module';
 import { InfraBillingModule } from './infra-billing/infra-billing.module';
@@ -43,6 +44,7 @@ import { UsersModule } from './users/users.module';
         ConfigProfileModule,
         InternalSquadModule,
         ExternalSquadModule,
+        FedarishaProvisioningModule,
         KeygenModule,
         NodesModule,
         NodePluginModule,

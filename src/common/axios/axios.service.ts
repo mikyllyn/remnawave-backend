@@ -41,6 +41,15 @@ import { formatExecutionTime, getTime } from '@common/utils/get-elapsed-time';
 import { GetNodeJwtCommand } from '@modules/keygen/commands/get-node-jwt';
 
 import { fail, ok, TResult } from '../types';
+import {
+    FEDARISHA_NODE_ROUTES,
+    ProbeFedarishaUserRequest,
+    ProbeFedarishaUserResponse,
+    ProvisionFedarishaUserRequest,
+    ProvisionFedarishaUserResponse,
+    RevokeFedarishaUserRequest,
+    RevokeFedarishaUserResponse,
+} from './fedarisha-node-contract';
 import { INodeConnectionOpts, INodeRequestOpts, IMtlsOptions } from './axios.interfaces';
 import { MtlsSocksProxyAgent } from './mtls-agent';
 
@@ -493,5 +502,99 @@ export class AxiosService {
             }),
             size: buffer.length,
         };
+    }
+
+    /*
+     * Fedarisha PAK provisioning
+     */
+
+    public async provisionFedarishaUser(
+        data: ProvisionFedarishaUserRequest,
+        url: string,
+        port: null | number,
+    ): Promise<TResult<ProvisionFedarishaUserResponse>> {
+        const nodeUrl = this.getNodeUrl(url, FEDARISHA_NODE_ROUTES.PROVISION_USER, port);
+
+        try {
+            const response = await this.axiosInstance.post<ProvisionFedarishaUserResponse>(
+                nodeUrl,
+                data,
+                { timeout: 20_000 },
+            );
+
+            return ok(response.data);
+        } catch (error) {
+            if (error instanceof AxiosError) {
+                this.logger.error(
+                    `Error in axios provisionFedarishaUser request: ${error.message}`,
+                );
+
+                return fail(ERRORS.NODE_ERROR_WITH_MSG.withMessage(JSON.stringify(error.message)));
+            }
+            this.logger.error('Error in provisionFedarishaUser:', error);
+            return fail(
+                ERRORS.NODE_ERROR_WITH_MSG.withMessage(
+                    JSON.stringify(error) ?? 'Unknown error',
+                ),
+            );
+        }
+    }
+
+    public async revokeFedarishaUser(
+        data: RevokeFedarishaUserRequest,
+        url: string,
+        port: null | number,
+    ): Promise<TResult<RevokeFedarishaUserResponse>> {
+        const nodeUrl = this.getNodeUrl(url, FEDARISHA_NODE_ROUTES.REVOKE_USER, port);
+
+        try {
+            const response = await this.axiosInstance.post<RevokeFedarishaUserResponse>(
+                nodeUrl,
+                data,
+                { timeout: 20_000 },
+            );
+
+            return ok(response.data);
+        } catch (error) {
+            if (error instanceof AxiosError) {
+                this.logger.error(`Error in axios revokeFedarishaUser request: ${error.message}`);
+                return fail(ERRORS.NODE_ERROR_WITH_MSG.withMessage(JSON.stringify(error.message)));
+            }
+            this.logger.error('Error in revokeFedarishaUser:', error);
+            return fail(
+                ERRORS.NODE_ERROR_WITH_MSG.withMessage(
+                    JSON.stringify(error) ?? 'Unknown error',
+                ),
+            );
+        }
+    }
+
+    public async probeFedarishaUser(
+        data: ProbeFedarishaUserRequest,
+        url: string,
+        port: null | number,
+    ): Promise<TResult<ProbeFedarishaUserResponse>> {
+        const nodeUrl = this.getNodeUrl(url, FEDARISHA_NODE_ROUTES.PROBE_USER, port);
+
+        try {
+            const response = await this.axiosInstance.post<ProbeFedarishaUserResponse>(
+                nodeUrl,
+                data,
+                { timeout: 10_000 },
+            );
+
+            return ok(response.data);
+        } catch (error) {
+            if (error instanceof AxiosError) {
+                this.logger.error(`Error in axios probeFedarishaUser request: ${error.message}`);
+                return fail(ERRORS.NODE_ERROR_WITH_MSG.withMessage(JSON.stringify(error.message)));
+            }
+            this.logger.error('Error in probeFedarishaUser:', error);
+            return fail(
+                ERRORS.NODE_ERROR_WITH_MSG.withMessage(
+                    JSON.stringify(error) ?? 'Unknown error',
+                ),
+            );
+        }
     }
 }

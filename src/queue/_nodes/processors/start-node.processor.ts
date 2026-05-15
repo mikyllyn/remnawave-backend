@@ -8,6 +8,7 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 
 import { AxiosService } from '@common/axios/axios.service';
 import { RawCacheService } from '@common/raw-cache';
+import { applyFedarishaWebhookDefaults } from '@common/utils/apply-fedarisha-webhook-defaults';
 import { formatExecutionTime, getTime } from '@common/utils/get-elapsed-time';
 import { CACHE_KEYS, CACHE_KEYS_TTL, EVENTS } from '@libs/contracts/constants';
 
@@ -206,7 +207,10 @@ export class StartNodeProcessor extends WorkerHost {
 
             const startNodeResult = await this.axios.startXray(
                 {
-                    xrayConfig: config.response.config as unknown as Record<string, unknown>,
+                    xrayConfig: applyFedarishaWebhookDefaults(
+                        config.response.config,
+                        node.address,
+                    ) as unknown as Record<string, unknown>,
                     internals: {
                         hashes: config.response.hashesPayload,
                         forceRestart: force ?? false,

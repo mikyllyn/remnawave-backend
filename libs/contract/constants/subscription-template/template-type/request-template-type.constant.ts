@@ -3,6 +3,7 @@ export const REQUEST_TEMPLATE_TYPE = {
     SINGBOX: 'singbox',
     MIHOMO: 'mihomo',
     XRAY_JSON: 'json',
+    FEDARISHA_JSON: 'fedarisha-json',
     V2RAY_JSON: 'v2ray-json',
     CLASH: 'clash',
 } as const;

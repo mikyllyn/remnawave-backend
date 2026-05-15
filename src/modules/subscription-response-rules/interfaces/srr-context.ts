@@ -9,6 +9,7 @@ export interface ISRRContext {
     userAgent: string;
     hwidHeaders: HwidHeaders | null;
     isExtendedClient: boolean;
+    supportsFedarisha: boolean;
     matchedResponseType: TResponseRulesResponseType;
     matchedRuleName?: string;
     ip: string;
