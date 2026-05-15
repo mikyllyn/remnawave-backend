@@ -86,6 +86,27 @@ export const HysteriaProtocolOptionsSchema = z.object({
     version: z.int(),
 });
 
+export const FedarishaTuningOptionsSchema = z.object({
+    idleTimeoutSec: z.number().int().nullable(),
+    pollIntervalMs: z.number().int().nullable(),
+    writeIntervalMs: z.number().int().nullable(),
+    maxFileSizeBytes: z.number().int().nullable(),
+});
+
+export const FedarishaProtocolOptionsSchema = z.object({
+    storage: z.object({
+        type: z.string(),
+        bucket: z.string(),
+        endpoint: z.string(),
+        region: z.string(),
+        prefix: z.string(),
+        sessionsDir: z.string().nullable(),
+        accessKey: z.string(),
+        secretKey: z.string(),
+    }),
+    tuning: FedarishaTuningOptionsSchema.nullable(),
+});
+
 export const HysteriaTransportOptionsSchema = z.object({
     version: z.int(),
     auth: z.string(),
@@ -133,11 +154,17 @@ const HysteriaProtocolSchema = z.object({
     protocolOptions: HysteriaProtocolOptionsSchema,
 });
 
+const FedarishaProtocolSchema = z.object({
+    protocol: z.literal('fedarisha'),
+    protocolOptions: FedarishaProtocolOptionsSchema,
+});
+
 export const ProtocolVariantSchema = z.discriminatedUnion('protocol', [
     VlessProtocolSchema.meta({ title: 'vless' }),
     TrojanProtocolSchema.meta({ title: 'trojan' }),
     ShadowsocksProtocolSchema.meta({ title: 'shadowsocks' }),
     HysteriaProtocolSchema.meta({ title: 'hysteria' }),
+    FedarishaProtocolSchema.meta({ title: 'fedarisha' }),
 ]);
 
 const TcpTransportSchema = z.object({

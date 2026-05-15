@@ -7,6 +7,7 @@ import { Logger, Scope } from '@nestjs/common';
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
 
 import { AxiosService } from '@common/axios/axios.service';
+import { applyFedarishaWebhookDefaults } from '@common/utils/apply-fedarisha-webhook-defaults';
 import { RawCacheService } from '@common/raw-cache';
 import { CACHE_KEYS, CACHE_KEYS_TTL } from '@libs/contracts/constants';
 
@@ -302,16 +303,21 @@ export class StartAllNodesByProfileQueueProcessor extends WorkerHost {
                     (inbound) => activeNodeInboundsTags.has(inbound.tag),
                 );
 
+                const nodeConfig = applyFedarishaWebhookDefaults(
+                    {
+                        ...config.response.config,
+                        inbounds: config.response.config.inbounds!.filter(
+                            (inbound) =>
+                                activeNodeInboundsTags.has(inbound.tag!) ||
+                                this.isUnsecureInbound(inbound.protocol),
+                        ),
+                    },
+                    node.address,
+                );
+
                 const startXrayResponse = await this.axios.startXray(
                     {
-                        xrayConfig: {
-                            ...config.response.config,
-                            inbounds: config.response.config.inbounds!.filter(
-                                (inbound) =>
-                                    activeNodeInboundsTags.has(inbound.tag!) ||
-                                    this.isUnsecureInbound(inbound.protocol),
-                            ),
-                        } as unknown as Record<string, unknown>,
+                        xrayConfig: nodeConfig as unknown as Record<string, unknown>,
                         internals: {
                             hashes: {
                                 emptyConfig: config.response.hashesPayload.emptyConfig,

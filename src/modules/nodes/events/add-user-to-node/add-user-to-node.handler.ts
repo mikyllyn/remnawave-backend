@@ -98,6 +98,12 @@ export class AddUserToNodeHandler implements IEventHandler<AddUserToNodeEvent> {
                                 password: vlessUuid,
                                 tag: inbound.tag,
                             };
+                        case 'fedarisha':
+                            return {
+                                type: inboundType,
+                                username: tId.toString(),
+                                tag: inbound.tag,
+                            };
                         default:
                             throw new Error(`Unsupported inbound type: ${inboundType}`);
                     }

@@ -25,11 +25,18 @@ import {
     SHADOWSOCKS_METHODS,
 } from './ss-cipher';
 
-const MANAGED_CLIENT_PROTOCOLS = new Set(['hysteria', 'shadowsocks', 'trojan', 'vless']);
+const MANAGED_CLIENT_PROTOCOLS = new Set([
+    'fedarisha',
+    'hysteria',
+    'shadowsocks',
+    'trojan',
+    'vless',
+]);
 type ManagedInboundSettings = VLessInboundConfig | TrojanInboundConfig | ShadowsocksInboundConfig;
 
 const ALLOWED_PROTOCOLS = new Set([
     'dokodemo-door',
+    'fedarisha',
     'http',
     'hysteria',
     'mixed',
@@ -100,7 +107,10 @@ export class XRayConfig {
                 tag: inbound.tag!,
                 rawInbound: inbound as unknown as object,
                 type: inbound.protocol,
-                network: inbound.streamSettings?.network ?? null,
+                network:
+                    inbound.protocol === 'fedarisha'
+                        ? 'tcp,udp'
+                        : (inbound.streamSettings?.network ?? null),
                 security: inbound.streamSettings?.security ?? null,
                 port: this.parsePort(inbound.port),
             }));
@@ -179,13 +189,16 @@ export class XRayConfig {
     ): XrayConfig {
         if (!this.config.inbounds) return this.config;
 
-        const usersByTag = this.groupUsersByTag(users, inboundsUserSets);
-
         const inboundMap = new Map(
             this.config.inbounds
-                .filter((inbound) => this.hasManagedClients(inbound))
-                .map((inbound) => [inbound.tag, inbound]),
+                .filter(
+                    (inbound): inbound is InboundConfig & { tag: string } =>
+                        this.hasManagedClients(inbound) && typeof inbound.tag === 'string',
+                )
+                .map((inbound) => [inbound.tag, inbound] as const),
         );
+
+        const usersByTag = this.groupUsersByTag(users, inboundsUserSets, inboundMap);
 
         for (const [tag, tagUsers] of usersByTag) {
             const inbound = inboundMap.get(tag);
@@ -201,11 +214,15 @@ export class XRayConfig {
     private groupUsersByTag(
         users: UserForConfigEntity[],
         inboundsUserSets: Map<string, HashedSet>,
+        inboundMap: Map<string, InboundConfig>,
     ): Map<string, UserForConfigEntity[]> {
         const usersByTag = new Map<string, UserForConfigEntity[]>();
 
         for (const user of users) {
             for (const tag of user.tags) {
+                const inbound = inboundMap.get(tag);
+                if (!inbound) continue;
+
                 let tagUsers = usersByTag.get(tag);
                 if (!tagUsers) {
                     tagUsers = [];
@@ -216,11 +233,19 @@ export class XRayConfig {
                 if (!inboundsUserSets.has(tag)) {
                     inboundsUserSets.set(tag, new HashedSet());
                 }
-                inboundsUserSets.get(tag)!.add(user.vlessUuid);
+                inboundsUserSets.get(tag)!.add(this.userHashForInbound(inbound, user));
             }
         }
 
         return usersByTag;
+    }
+
+    private userHashForInbound(inbound: InboundConfig, user: UserForConfigEntity): string {
+        if (inbound.protocol === 'fedarisha') {
+            return user.tId.toString();
+        }
+
+        return user.vlessUuid;
     }
 
     private addUsersToInbound(inbound: InboundConfig, users: UserForConfigEntity[]): void {
@@ -249,6 +274,20 @@ export class XRayConfig {
                     inbound.settings.clients.push({
                         id: user.vlessUuid,
                         email: user.id.toString(),
+                    });
+                }
+                break;
+
+            case 'fedarisha':
+                if (!inbound.settings) {
+                    inbound.settings = {};
+                }
+                inbound.settings.clients ??= [];
+
+                for (const user of users) {
+                    inbound.settings.clients.push({
+                        id: user.tId.toString(),
+                        email: user.tId.toString(),
                     });
                 }
                 break;

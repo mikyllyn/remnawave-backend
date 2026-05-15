@@ -1,0 +1,152 @@
+diff --git a/node_modules/@remnawave/node-contract/build/commands/handler/add-user.command.d.ts b/node_modules/@remnawave/node-contract/build/commands/handler/add-user.command.d.ts
+index fbdf015..7becfde 100644
+--- a/node_modules/@remnawave/node-contract/build/commands/handler/add-user.command.d.ts
++++ b/node_modules/@remnawave/node-contract/build/commands/handler/add-user.command.d.ts
+@@ -95,6 +95,18 @@ export declare namespace AddUserCommand {
+             tag: string;
+             username: string;
+             password: string;
++        }>, z.ZodObject<{
++            type: z.ZodLiteral<"fedarisha">;
++            tag: z.ZodString;
++            username: z.ZodString;
++        }, "strip", z.ZodTypeAny, {
++            type: "fedarisha";
++            tag: string;
++            username: string;
++        }, {
++            type: "fedarisha";
++            tag: string;
++            username: string;
+         }>]>, "many">;
+         hashData: z.ZodObject<{
+             vlessUuid: z.ZodString;
+@@ -135,6 +147,10 @@ export declare namespace AddUserCommand {
+             tag: string;
+             username: string;
+             password: string;
++        } | {
++            type: "fedarisha";
++            tag: string;
++            username: string;
+         })[];
+         hashData: {
+             vlessUuid: string;
+@@ -169,6 +185,10 @@ export declare namespace AddUserCommand {
+             tag: string;
+             username: string;
+             password: string;
++        } | {
++            type: "fedarisha";
++            tag: string;
++            username: string;
+         })[];
+         hashData: {
+             vlessUuid: string;
+diff --git a/node_modules/@remnawave/node-contract/build/commands/handler/add-user.command.js b/node_modules/@remnawave/node-contract/build/commands/handler/add-user.command.js
+index 6b450a4..4f3e046 100644
+--- a/node_modules/@remnawave/node-contract/build/commands/handler/add-user.command.js
++++ b/node_modules/@remnawave/node-contract/build/commands/handler/add-user.command.js
+@@ -49,6 +49,11 @@ var AddUserCommand;
+         username: zod_1.z.string(),
+         password: zod_1.z.string(),
+     });
++    const BaseFedarishaUser = zod_1.z.object({
++        type: zod_1.z.literal('fedarisha'),
++        tag: zod_1.z.string(),
++        username: zod_1.z.string(),
++    });
+     AddUserCommand.RequestSchema = zod_1.z.object({
+         data: zod_1.z.array(zod_1.z.discriminatedUnion('type', [
+             BaseTrojanUser,
+@@ -56,6 +61,7 @@ var AddUserCommand;
+             BaseShadowsocksUser,
+             BaseShadowsocks22User,
+             BaseHysteriaUser,
++            BaseFedarishaUser,
+         ])),
+         hashData: zod_1.z.object({
+             vlessUuid: zod_1.z.string().uuid(),
+diff --git a/node_modules/@remnawave/node-contract/build/commands/handler/add-users.command.d.ts b/node_modules/@remnawave/node-contract/build/commands/handler/add-users.command.d.ts
+index c68eaab..ac71ef2 100644
+--- a/node_modules/@remnawave/node-contract/build/commands/handler/add-users.command.d.ts
++++ b/node_modules/@remnawave/node-contract/build/commands/handler/add-users.command.d.ts
+@@ -52,6 +52,15 @@ export declare namespace AddUsersCommand {
+             }, {
+                 type: "hysteria";
+                 tag: string;
++            }>, z.ZodObject<{
++                type: z.ZodLiteral<"fedarisha">;
++                tag: z.ZodString;
++            }, "strip", z.ZodTypeAny, {
++                type: "fedarisha";
++                tag: string;
++            }, {
++                type: "fedarisha";
++                tag: string;
+             }>]>, "many">;
+             userData: z.ZodObject<{
+                 userId: z.ZodString;
+@@ -89,6 +98,9 @@ export declare namespace AddUsersCommand {
+             } | {
+                 type: "hysteria";
+                 tag: string;
++            } | {
++                type: "fedarisha";
++                tag: string;
+             })[];
+             userData: {
+                 vlessUuid: string;
+@@ -114,6 +126,9 @@ export declare namespace AddUsersCommand {
+             } | {
+                 type: "hysteria";
+                 tag: string;
++            } | {
++                type: "fedarisha";
++                tag: string;
+             })[];
+             userData: {
+                 vlessUuid: string;
+@@ -142,6 +157,9 @@ export declare namespace AddUsersCommand {
+             } | {
+                 type: "hysteria";
+                 tag: string;
++            } | {
++                type: "fedarisha";
++                tag: string;
+             })[];
+             userData: {
+                 vlessUuid: string;
+@@ -170,6 +188,9 @@ export declare namespace AddUsersCommand {
+             } | {
+                 type: "hysteria";
+                 tag: string;
++            } | {
++                type: "fedarisha";
++                tag: string;
+             })[];
+             userData: {
+                 vlessUuid: string;
+diff --git a/node_modules/@remnawave/node-contract/build/commands/handler/add-users.command.js b/node_modules/@remnawave/node-contract/build/commands/handler/add-users.command.js
+index 11e9a44..614d8b5 100644
+--- a/node_modules/@remnawave/node-contract/build/commands/handler/add-users.command.js
++++ b/node_modules/@remnawave/node-contract/build/commands/handler/add-users.command.js
+@@ -27,6 +27,10 @@ var AddUsersCommand;
+         type: zod_1.z.literal('hysteria'),
+         tag: zod_1.z.string(),
+     });
++    const BaseFedarishaUser = zod_1.z.object({
++        type: zod_1.z.literal('fedarisha'),
++        tag: zod_1.z.string(),
++    });
+     AddUsersCommand.RequestSchema = zod_1.z.object({
+         affectedInboundTags: zod_1.z.array(zod_1.z.string()),
+         users: zod_1.z.array(zod_1.z.object({
+@@ -36,6 +40,7 @@ var AddUsersCommand;
+                 BaseShadowsocksUser,
+                 BaseShadowsocks22User,
+                 BaseHysteriaUser,
++                BaseFedarishaUser,
+             ])),
+             userData: zod_1.z.object({
+                 userId: zod_1.z.string(),

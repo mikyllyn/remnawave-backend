@@ -26,6 +26,31 @@ export interface IHysteriaProtocolOptions {
     version: number;
 }
 
+// Fedarisha is an S3-backed transport: there is no network endpoint on the
+// node, the client coniguration carries the bucket creds directly. address /
+// port / SNI on a fedarisha-tagged host record are placeholders the operator
+// can set to anything (UI doesn't differentiate); the renderer ignores them.
+export interface IFedarishaTuningOptions {
+    idleTimeoutSec: number | null;
+    pollIntervalMs: number | null;
+    writeIntervalMs: number | null;
+    maxFileSizeBytes: number | null;
+}
+
+export interface IFedarishaProtocolOptions {
+    storage: {
+        type: string;
+        bucket: string;
+        endpoint: string;
+        region: string;
+        prefix: string;
+        sessionsDir: string | null;
+        accessKey: string;
+        secretKey: string;
+    };
+    tuning: IFedarishaTuningOptions | null;
+}
+
 // ─── Transport Options ───────────────────────────────────
 
 export interface ITcpTransportOptions {
@@ -115,11 +140,17 @@ export type HysteriaProtocol = {
     protocolOptions: IHysteriaProtocolOptions;
 };
 
+export type FedarishaProtocol = {
+    protocol: 'fedarisha';
+    protocolOptions: IFedarishaProtocolOptions;
+};
+
 export type ProtocolVariant =
     | VlessProtocol
     | TrojanProtocol
     | ShadowsocksProtocol
-    | HysteriaProtocol;
+    | HysteriaProtocol
+    | FedarishaProtocol;
 
 // ─── Transport Variants ──────────────────────────────────
 

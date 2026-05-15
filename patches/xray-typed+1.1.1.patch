@@ -1,0 +1,60 @@
+diff --git a/node_modules/xray-typed/dist/config/inbound.d.ts b/node_modules/xray-typed/dist/config/inbound.d.ts
+index fe08e15..0fb3d47 100644
+--- a/node_modules/xray-typed/dist/config/inbound.d.ts
++++ b/node_modules/xray-typed/dist/config/inbound.d.ts
+@@ -36,7 +36,7 @@ interface InboundConfigBase {
+  *
+  * @see https://xtls.github.io/en/config/inbound.html
+  */
+-export type InboundConfig = InboundVLess | InboundVMess | InboundTrojan | InboundShadowsocks | InboundSocks | InboundHTTP | InboundDokodemo | InboundTunnel | InboundMixed | InboundHysteria;
++export type InboundConfig = InboundVLess | InboundVMess | InboundTrojan | InboundShadowsocks | InboundSocks | InboundHTTP | InboundDokodemo | InboundTunnel | InboundMixed | InboundHysteria | InboundFedarisha;
+ export interface InboundVLess extends InboundConfigBase {
+     protocol: 'vless';
+     settings?: VLessInboundConfig;
+@@ -79,6 +79,22 @@ export interface InboundHysteria extends InboundConfigBase {
+     protocol: 'hysteria';
+     settings?: HysteriaInboundConfig;
+ }
++export interface FedarishaInboundClient {
++    id?: string;
++    email?: string;
++    level?: number;
++}
++export interface FedarishaInboundConfig {
++    clients?: FedarishaInboundClient[];
++    storage?: Record<string, unknown>;
++    tuning?: Record<string, unknown>;
++    webhook?: Record<string, unknown>;
++    userLevel?: number;
++}
++export interface InboundFedarisha extends InboundConfigBase {
++    protocol: 'fedarisha';
++    settings?: FedarishaInboundConfig;
++}
+ /** Fallback for unknown/custom protocols. */
+ export interface InboundGeneric extends InboundConfigBase {
+     protocol?: string;
+@@ -87,7 +103,7 @@ export interface InboundGeneric extends InboundConfigBase {
+ /**
+  * Union type for all possible inbound protocol settings.
+  */
+-export type InboundSettings = VLessInboundConfig | VMessInboundConfig | TrojanInboundConfig | ShadowsocksInboundConfig | SocksInboundConfig | HTTPInboundConfig | DokodemoInboundConfig | HysteriaInboundConfig;
+-export type InboundProtocol = 'vless' | 'vmess' | 'trojan' | 'shadowsocks' | 'socks' | 'http' | 'dokodemo-door' | 'tunnel' | 'mixed' | 'hysteria';
++export type InboundSettings = VLessInboundConfig | VMessInboundConfig | TrojanInboundConfig | ShadowsocksInboundConfig | SocksInboundConfig | HTTPInboundConfig | DokodemoInboundConfig | HysteriaInboundConfig | FedarishaInboundConfig;
++export type InboundProtocol = 'vless' | 'vmess' | 'trojan' | 'shadowsocks' | 'socks' | 'http' | 'dokodemo-door' | 'tunnel' | 'mixed' | 'hysteria' | 'fedarisha';
+ export {};
+ //# sourceMappingURL=inbound.d.ts.map
+\ No newline at end of file
+diff --git a/node_modules/xray-typed/dist/index.d.ts b/node_modules/xray-typed/dist/index.d.ts
+index 9198aa0..48d8278 100644
+--- a/node_modules/xray-typed/dist/index.d.ts
++++ b/node_modules/xray-typed/dist/index.d.ts
+@@ -11,7 +11,7 @@ export { FakeDNSConfig, FakeDNSPoolConfig, } from './config/fakedns';
+ export { ObservatoryConfig, BurstObservatoryConfig, HealthCheckSettings, } from './config/observatory';
+ export { SniffingConfig, SniffDestOverride, } from './config/sniffing';
+ export { MuxConfig, XudpProxyUDP443, } from './config/mux';
+-export { InboundConfig, InboundVLess, InboundVMess, InboundTrojan, InboundShadowsocks, InboundSocks, InboundHTTP, InboundDokodemo, InboundTunnel, InboundMixed, InboundHysteria, InboundGeneric, InboundSettings, InboundProtocol, } from './config/inbound';
++export { InboundConfig, InboundVLess, InboundVMess, InboundTrojan, InboundShadowsocks, InboundSocks, InboundHTTP, InboundDokodemo, InboundTunnel, InboundMixed, InboundHysteria, InboundFedarisha, InboundGeneric, InboundSettings, InboundProtocol, FedarishaInboundClient, FedarishaInboundConfig, } from './config/inbound';
+ export { OutboundConfig, OutboundVLess, OutboundVMess, OutboundTrojan, OutboundShadowsocks, OutboundSocks, OutboundHTTP, OutboundFreedom, OutboundBlackhole, OutboundDNS, OutboundWireGuard, OutboundLoopback, OutboundHysteria, OutboundGeneric, OutboundSettings, OutboundProtocol, ProxySettings, } from './config/outbound';
+ export { TransportProtocol, SecurityType, HeaderType, Int32Range, Bandwidth, } from './transport/common';
+ export { StreamSettingsConfig, TransportSettingsMap, SecuritySettingsMap } from './transport/stream';

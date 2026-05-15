@@ -31,6 +31,10 @@ import { HostWithRawInbound } from '@modules/hosts/entities/host-with-inbound-ta
 import { ISRRContext } from '@modules/subscription-response-rules/interfaces';
 import { SubscriptionSettingsEntity } from '@modules/subscription-settings/entities/subscription-settings.entity';
 import { UserEntity } from '@modules/users/entities';
+import {
+    FedarishaSubscriptionService,
+    IFedarishaOutboundData,
+} from '@modules/fedarisha-provisioning';
 
 import {
     GrpcTransport,
@@ -67,7 +71,10 @@ export class ResolveProxyConfigService {
     private readonly domainRegex =
         /^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$/;
 
-    constructor(private readonly configService: TypedConfigService) {
+    constructor(
+        private readonly configService: TypedConfigService,
+        private readonly fedarishaSubscriptionService: FedarishaSubscriptionService,
+    ) {
         this.nanoid = customAlphabet('0123456789abcdefghjkmnopqrstuvwxyz', 10);
         this.subPublicDomain = this.configService.getOrThrow('SUB_PUBLIC_DOMAIN');
     }
@@ -103,10 +110,11 @@ export class ResolveProxyConfigService {
         const hosts = this.applyShuffle(options.hosts);
 
         const rawInbounds = hosts.map((h) => h.rawInbound);
-        const [publicKeyMap, mldsa65PublicKeyMap, encryptionMap] = await Promise.all([
+        const [publicKeyMap, mldsa65PublicKeyMap, encryptionMap, fedarishaMap] = await Promise.all([
             resolveInboundAndPublicKey(rawInbounds),
             resolveInboundAndMlDsa65PublicKey(rawInbounds),
             resolveEncryptionFromDecryption(rawInbounds),
+            this.resolveFedarishaOutbounds(hosts, user),
         ]);
 
         const knownRemarks = new Map<string, number>();
@@ -134,6 +142,7 @@ export class ResolveProxyConfigService {
                 publicKeyMap,
                 mldsa65PublicKeyMap,
                 encryptionMap,
+                fedarishaMap,
             });
 
             if (resolvedProxyConfig) {
@@ -142,6 +151,40 @@ export class ResolveProxyConfigService {
         }
 
         return resolvedProxyConfigs;
+    }
+
+    // Pre-resolves PAK creds for every fedarisha inbound the user is exposed
+    // to in this batch. Done once per subscription render, deduped by
+    // inboundTag — the master S3 creds are shared across nodes for the same
+    // inbound, and ensureCredentials caches per (user, inbound). Hosts whose
+    // inbound resolution fails (no node, missing storage, provisioning down)
+    // are absent from the map → resolveProtocolOptions drops them.
+    private async resolveFedarishaOutbounds(
+        hosts: HostWithRawInbound[],
+        user: UserEntity,
+    ): Promise<Map<string, IFedarishaOutboundData>> {
+        const result = new Map<string, IFedarishaOutboundData>();
+        const seen = new Set<string>();
+
+        for (const host of hosts) {
+            const inbound = host.rawInbound as InboundConfig | null;
+            if (!inbound || (inbound as { protocol?: string }).protocol !== 'fedarisha') continue;
+            if (!host.configProfileUuid || !host.configProfileInboundUuid) continue;
+            if (seen.has(host.inboundTag)) continue;
+            seen.add(host.inboundTag);
+
+            const outbound = await this.fedarishaSubscriptionService.buildOutboundForHost({
+                userId: user.tId,
+                userUuid: user.uuid,
+                inboundTag: host.inboundTag,
+                configProfileInboundUuid: host.configProfileInboundUuid,
+                configProfileUuid: host.configProfileUuid,
+                rawInbound: inbound,
+            });
+            if (outbound) result.set(host.inboundTag, outbound);
+        }
+
+        return result;
     }
 
     private resolveEarlyExitRemarks(
@@ -488,8 +531,28 @@ export class ResolveProxyConfigService {
         inputHost: HostWithRawInbound,
         inbound: InboundConfig,
         user: UserEntity,
-        encryption?: string,
+        encryption: string | undefined,
+        fedarishaMap: Map<string, IFedarishaOutboundData>,
     ): ProtocolVariant | null {
+        if ((inbound as { protocol?: string }).protocol === 'fedarisha') {
+            const outbound = fedarishaMap.get(inputHost.inboundTag);
+            if (!outbound) return null;
+            return {
+                protocol: 'fedarisha',
+                protocolOptions: {
+                    storage: outbound.storage,
+                    tuning: outbound.tuning
+                        ? {
+                              idleTimeoutSec: outbound.tuning.idleTimeoutSec ?? null,
+                              pollIntervalMs: outbound.tuning.pollIntervalMs ?? null,
+                              writeIntervalMs: outbound.tuning.writeIntervalMs ?? null,
+                              maxFileSizeBytes: outbound.tuning.maxFileSizeBytes ?? null,
+                          }
+                        : null,
+                },
+            };
+        }
+
         if (!inbound.settings) {
             return null;
         }
@@ -549,6 +612,7 @@ export class ResolveProxyConfigService {
         publicKeyMap: Map<string, string>;
         mldsa65PublicKeyMap: Map<string, string>;
         encryptionMap: Map<string, string>;
+        fedarishaMap: Map<string, IFedarishaOutboundData>;
     }): ResolvedProxyConfig | null {
         const { inputHost, inbound, finalRemark, user } = ctx;
 
@@ -559,24 +623,36 @@ export class ResolveProxyConfigService {
             inbound,
             user,
             ctx.encryptionMap.get(inputHost.inboundTag),
+            ctx.fedarishaMap,
         );
 
         if (!protocol) {
             return null;
         }
 
-        const transport = this.resolveTransport(inbound.streamSettings, inputHost, protocol, {
-            vlessUuid: user.vlessUuid,
-        });
+        // Fedarisha is an S3-backed transport — there's no network endpoint
+        // and no TLS/REALITY layer at the xray level. The credentials in
+        // protocolOptions.storage carry everything needed; transport/security
+        // are forced to inert tcp/none placeholders so the renderer skips
+        // streamSettings for these outbounds.
+        const transport: TransportVariant =
+            protocol.protocol === 'fedarisha'
+                ? { transport: 'tcp', transportOptions: { header: null } }
+                : this.resolveTransport(inbound.streamSettings, inputHost, protocol, {
+                      vlessUuid: user.vlessUuid,
+                  });
 
-        const security = this.resolveSecurity(
-            inbound.streamSettings,
-            inputHost,
-            inbound.tag!,
-            ctx.publicKeyMap,
-            ctx.mldsa65PublicKeyMap,
-            address,
-        );
+        const security: SecurityVariant =
+            protocol.protocol === 'fedarisha'
+                ? { security: 'none' }
+                : this.resolveSecurity(
+                      inbound.streamSettings,
+                      inputHost,
+                      inbound.tag!,
+                      ctx.publicKeyMap,
+                      ctx.mldsa65PublicKeyMap,
+                      address,
+                  );
 
         return {
             finalRemark: finalRemark,

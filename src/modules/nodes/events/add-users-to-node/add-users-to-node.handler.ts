@@ -94,6 +94,8 @@ export class AddUsersToNodeHandler implements IEventHandler<AddUsersToNodeEvent>
                                     return { type: inboundType, tag: inbound.tag };
                                 case 'shadowsocks22':
                                     return { type: inboundType, tag: inbound.tag };
+                                case 'fedarisha':
+                                    return { type: inboundType, tag: inbound.tag };
                                 default:
                                     throw new Error(`Unsupported inbound type: ${inboundType}`);
                             }

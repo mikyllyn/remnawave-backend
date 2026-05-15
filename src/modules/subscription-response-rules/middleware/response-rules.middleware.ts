@@ -10,6 +10,7 @@ import { extractHwidHeaders } from '@common/utils/extract-hwid-headers/extract-h
 import { truncateHeader } from '@common/utils/truncate-header.util';
 import {
     ERRORS,
+    REQUEST_TEMPLATE_TYPE,
     RESPONSE_RULES_RESPONSE_TYPES,
     TRequestTemplateTypeKeys,
 } from '@libs/contracts/constants';
@@ -83,6 +84,7 @@ export class ResponseRulesMiddleware implements NestMiddleware {
                     userAgent,
                     result.matchedRule?.responseModifications?.additionalExtendedClientsRegex,
                 ),
+                supportsFedarisha: overrideClientType === REQUEST_TEMPLATE_TYPE.FEDARISHA_JSON,
                 matchedResponseType: result.responseType,
                 matchedRuleName: result.matchedRule?.name,
                 ip: req.clientIp,
