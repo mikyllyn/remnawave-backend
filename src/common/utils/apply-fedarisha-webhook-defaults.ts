@@ -6,6 +6,7 @@ type XrayInbound = {
 type FedarishaSettings = {
     storage?: {
         type?: unknown;
+        authType?: unknown;
         bucket?: unknown;
     };
     webhook?: {
@@ -61,10 +62,11 @@ const ensureSettings = (inbound: XrayInbound): FedarishaSettings => {
     return inbound.settings as FedarishaSettings;
 };
 
-// All three PAK providers (vkcloud-pak / selectel-iam / static) are
-// S3-backed transports and need the same webhook defaults; node-side
-// just differs in how it mints per-user credentials.
-const S3_STORAGE_TYPES = new Set(['vkcloud-pak', 'selectel-iam', 'static']);
+// Webhook defaults only apply when the inbound is S3-backed and a node-side
+// PAK provider is configured — that combination is what publishes per-user
+// notifications through the node webhook hub. `type` selects the xray-core
+// transport; `authType` picks the PAK provider that mints per-user keys.
+const PAK_AUTH_TYPES = new Set(['vkcloud-pak', 'selectel-iam', 'static']);
 
 const isS3Storage = (settings: FedarishaSettings): boolean => {
     const storage = settings.storage;
@@ -72,7 +74,11 @@ const isS3Storage = (settings: FedarishaSettings): boolean => {
         return false;
     }
 
-    return typeof storage.type === 'string' && S3_STORAGE_TYPES.has(storage.type);
+    if (storage.type !== 's3') {
+        return false;
+    }
+
+    return typeof storage.authType === 'string' && PAK_AUTH_TYPES.has(storage.authType);
 };
 
 const buildDefaultPublicUrl = (nodeAddress: string): string => {
