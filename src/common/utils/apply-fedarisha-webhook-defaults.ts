@@ -61,13 +61,18 @@ const ensureSettings = (inbound: XrayInbound): FedarishaSettings => {
     return inbound.settings as FedarishaSettings;
 };
 
+// All three PAK providers (vkcloud-pak / selectel-iam / static) are
+// S3-backed transports and need the same webhook defaults; node-side
+// just differs in how it mints per-user credentials.
+const S3_STORAGE_TYPES = new Set(['vkcloud-pak', 'selectel-iam', 'static']);
+
 const isS3Storage = (settings: FedarishaSettings): boolean => {
     const storage = settings.storage;
     if (!storage) {
         return false;
     }
 
-    return storage.type === 's3' || (!storage.type && typeof storage.bucket === 'string');
+    return typeof storage.type === 'string' && S3_STORAGE_TYPES.has(storage.type);
 };
 
 const buildDefaultPublicUrl = (nodeAddress: string): string => {
