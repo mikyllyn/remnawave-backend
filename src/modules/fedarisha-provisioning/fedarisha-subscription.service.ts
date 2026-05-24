@@ -110,7 +110,12 @@ export class FedarishaSubscriptionService {
 
         return {
             storage: {
-                type: baseStorage.type ?? 's3',
+                // Inbound's storage.type names the node-side PAK provider
+                // (vkcloud-pak / selectel-iam / static); the xray client on
+                // the user's device only knows the transport-level "s3"
+                // store, so we always emit "s3" on the outbound regardless
+                // of which provider issued the credentials.
+                type: 's3',
                 bucket: baseStorage.bucket,
                 endpoint: baseStorage.endpoint,
                 region: baseStorage.region ?? '',
