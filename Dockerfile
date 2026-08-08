@@ -1,13 +1,18 @@
 FROM alpine:3.19 AS frontend
 WORKDIR /opt/frontend
 
-ARG BRANCH=main
-ARG FRONTEND_URL=https://github.com/remnawave/frontend/releases/latest/download/remnawave-frontend.zip
+# The frontend ships as a release zip rather than being built here. Since the
+# frontend repo is private, a token-bearing curl from inside the build is
+# unreliable — private release assets are only reachable through the API asset
+# endpoint, not the /releases/latest/download/ redirect. So the zip is fetched
+# outside Docker and handed over in the build context instead:
+#
+#     ./scripts/fetch-frontend.sh [tag]
+#
+# CI does the same via `gh release download` — see build-and-push.yml.
+COPY frontend.zip ./frontend.zip
 
-RUN --mount=type=secret,id=clone_token apk add --no-cache curl unzip ca-certificates \
-    && AUTH_HEADER="" \
-    && if [ -s /run/secrets/clone_token ]; then AUTH_HEADER="Authorization: token $(cat /run/secrets/clone_token)"; fi \
-    && curl -fL -H "$AUTH_HEADER" ${FRONTEND_URL} -o frontend.zip \
+RUN apk add --no-cache curl unzip ca-certificates \
     && unzip frontend.zip -d frontend_temp \
     && curl -L https://validator.remna.dev/wasm_exec.js -o frontend_temp/dist/assets/wasm_exec.js \
     && curl -L https://validator.remna.dev/xray.schema.json -o frontend_temp/dist/assets/xray.schema.json \

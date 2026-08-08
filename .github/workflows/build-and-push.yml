@@ -1,35 +1,37 @@
-name: Build&Push Release Docker Image
+name: Build & Push Docker Image
+
+# Publishes ghcr.io/<owner>/remnawave-backend. The repo is private, so the
+# resulting package is private too and the panel host needs a pull token — see
+# DEPLOY.md at the repo root.
+#
+# The image bundles a prebuilt frontend, pulled from the frontend repo's latest
+# release. That repo is private, so this needs a PAT with read access to it in
+# the FRONTEND_READ_TOKEN secret; the built-in GITHUB_TOKEN is scoped to this
+# repository only. Publish the frontend release before building the backend.
 
 on:
   push:
     tags:
       - '*'
-
   workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Image tag to publish (defaults to the git ref name)'
+        required: false
+      frontend_tag:
+        description: 'Frontend release to bundle (defaults to its latest)'
+        required: false
+
+permissions:
+  contents: read
+  packages: write
 
 env:
-  REGISTRY_IMAGE: remnawave/backend
-  GHCR_IMAGE: ghcr.io/remnawave/backend
+  IMAGE: ghcr.io/${{ github.repository_owner }}/remnawave-backend
+  FRONTEND_REPO: ${{ github.repository_owner }}/remnawave-frontend
 
 jobs:
-  send-tg-msg:
-    name: Send TG message
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout source code
-        uses: actions/checkout@v7
-
-      - name: Send Telegram message
-        uses: proDreams/actions-telegram-notifier@main
-        with:
-          token: ${{ secrets.TELEGRAM_TOKEN }}
-          chat_id: ${{ secrets.TELEGRAM_CHAT_ID }}
-          thread_id: ${{ secrets.TELEGRAM_TOPIC_ID }}
-          status: info
-          notify_fields: 'repository,branch,commit,workflow'
-          title: 'Build started.'
-
-  build-docker-images:
+  build:
     name: Build ${{ matrix.platform }}
     runs-on: ${{ matrix.runner }}
     strategy:
@@ -47,47 +49,40 @@ jobs:
           echo "PLATFORM_PAIR=${platform//\//-}" >> "$GITHUB_ENV"
 
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
+
+      - name: Fetch frontend release into the build context
+        env:
+          GH_TOKEN: ${{ secrets.FRONTEND_READ_TOKEN }}
+        run: |
+          if [ -z "${GH_TOKEN:-}" ]; then
+            echo "::error::FRONTEND_READ_TOKEN is not set — it needs read access to $FRONTEND_REPO"
+            exit 1
+          fi
+          gh release download ${{ github.event.inputs.frontend_tag }} \
+            --repo "$FRONTEND_REPO" \
+            --pattern 'remnawave-frontend.zip' \
+            --output frontend.zip --clobber
+          ls -l frontend.zip
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
-
-      - name: Login to Docker Hub
-        uses: docker/login-action@v4
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+        uses: docker/setup-buildx-action@v3
 
       - name: Login to GitHub Container Registry
-        uses: docker/login-action@v4
+        uses: docker/login-action@v3
         with:
           registry: ghcr.io
-          username: ${{ github.repository_owner }}
-          password: ${{ secrets.TOKEN_GH_DEPLOY }}
-
-      - name: Prepare build metadata
-        id: meta
-        run: |
-          echo "version=$(jq -r .version package.json)" >> $GITHUB_OUTPUT
-          echo "build_time=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_OUTPUT
-          echo "frontend_commit=$(curl -s https://api.github.com/repos/remnawave/frontend/commits/${{ github.ref_name }} | jq -r '.sha')" >> $GITHUB_OUTPUT
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push by digest
         id: build
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: Dockerfile
           platforms: ${{ matrix.platform }}
-          build-args: |
-            __RW_METADATA_GIT_BRANCH=main
-            __RW_METADATA_BUILD_TIME=${{ steps.meta.outputs.build_time }}
-            __RW_METADATA_BUILD_NUMBER=${{ github.run_number }}
-            __RW_METADATA_VERSION=${{ steps.meta.outputs.version }}
-            __RW_METADATA_GIT_BACKEND_COMMIT=${{ github.sha }}
-            __RW_METADATA_GIT_FRONTEND_COMMIT=${{ steps.meta.outputs.frontend_commit }}
-          outputs: |
-            type=image,"name=${{ env.REGISTRY_IMAGE }},${{ env.GHCR_IMAGE }}",push-by-digest=true,name-canonical=true,push=true
+          outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=true
 
       - name: Export digest
         run: |
@@ -104,10 +99,14 @@ jobs:
           retention-days: 1
 
   merge:
-    name: Merge & push manifests
-    needs: [build-docker-images]
+    name: Merge & push manifest
+    needs: [build]
     runs-on: ubuntu-latest
     steps:
+      - name: Resolve image tag
+        id: meta
+        run: echo "tag=${{ github.event.inputs.tag || github.ref_name }}" >> "$GITHUB_OUTPUT"
+
       - name: Download digests
         uses: actions/download-artifact@v4
         with:
@@ -116,130 +115,22 @@ jobs:
           merge-multiple: true
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
-
-      - name: Login to Docker Hub
-        uses: docker/login-action@v4
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+        uses: docker/setup-buildx-action@v3
 
       - name: Login to GitHub Container Registry
-        uses: docker/login-action@v4
+        uses: docker/login-action@v3
         with:
           registry: ghcr.io
-          username: ${{ github.repository_owner }}
-          password: ${{ secrets.TOKEN_GH_DEPLOY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Create & push manifest lists
+      - name: Create & push manifest list
         working-directory: ${{ runner.temp }}/digests
         run: |
           docker buildx imagetools create \
-            -t ${{ env.REGISTRY_IMAGE }}:latest \
-            -t ${{ env.REGISTRY_IMAGE }}:${{ github.ref_name }} \
-            -t ${{ env.REGISTRY_IMAGE }}:3 \
-            $(printf '${{ env.REGISTRY_IMAGE }}@sha256:%s ' *)
-
-          docker buildx imagetools create \
-            -t ${{ env.GHCR_IMAGE }}:latest \
-            -t ${{ env.GHCR_IMAGE }}:${{ github.ref_name }} \
-            -t ${{ env.GHCR_IMAGE }}:3 \
-            $(printf '${{ env.GHCR_IMAGE }}@sha256:%s ' *)
+            -t ${{ env.IMAGE }}:latest \
+            -t ${{ env.IMAGE }}:${{ steps.meta.outputs.tag }} \
+            $(printf '${{ env.IMAGE }}@sha256:%s ' *)
 
       - name: Inspect image
-        run: |
-          docker buildx imagetools inspect ${{ env.REGISTRY_IMAGE }}:${{ github.ref_name }}
-          docker buildx imagetools inspect ${{ env.GHCR_IMAGE }}:${{ github.ref_name }}
-
-  create-release:
-    needs: [merge]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22.x'
-
-      - name: NewTag
-        id: tag
-        uses: JinoArch/get-latest-tag@latest
-
-      - name: Generate changelog
-        id: changelog
-        run: |
-          CHANGELOG=$(npx changelogen --from=${{ steps.tag.outputs.previousTag }} --to=${{ steps.tag.outputs.latestTag }} | sed '/^\[log\]/d')
-          echo "CHANGELOG<<EOF" >> $GITHUB_ENV
-          echo "$CHANGELOG" >> $GITHUB_ENV
-          echo "EOF" >> $GITHUB_ENV
-
-      - name: Create Release
-        uses: softprops/action-gh-release@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.TOKEN_GH_DEPLOY }}
-        with:
-          tag_name: ${{ github.ref_name }}
-          name: v${{ github.ref_name }}
-          generate_release_notes: true
-          append_body: true
-          make_latest: true
-          draft: false
-          prerelease: false
-          body: |
-            🌊 Remnawave Backend v${{ github.ref_name }}
-
-            <p align="center">
-              <a href="https://t.me/remnawave" target="_blank" rel="noopener noreferrer">
-                <img src="https://img.shields.io/badge/Join%20community-Telegram-26A5E4?style=for-the-badge&logo=telegram&logoColor=white" alt="Join community on Telegram" width="220" height="auto">
-              </a>
-            </p>
-
-            ${{ env.CHANGELOG }}
-
-            Latest Docker image:
-            - `remnawave/backend:latest`
-            - `ghcr.io/remnawave/backend:latest`
-
-            Docker images:
-            - `remnawave/backend:${{github.ref_name}}`
-            - `ghcr.io/remnawave/backend:${{github.ref_name}}`
-
-  send-finish-tg-msg:
-    name: Send TG message
-    needs: [merge, create-release]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout source code
-        uses: actions/checkout@v7
-
-      - name: Send Telegram message
-        uses: proDreams/actions-telegram-notifier@main
-        with:
-          token: ${{ secrets.TELEGRAM_TOKEN }}
-          chat_id: ${{ secrets.TELEGRAM_CHAT_ID }}
-          thread_id: ${{ secrets.TELEGRAM_TOPIC_ID }}
-          status: ${{ job.status }}
-          notify_fields: 'repository,branch,commit'
-          title: 'Build finished.'
-
-  notify-on-error:
-    runs-on: ubuntu-latest
-    needs: [build-docker-images, merge, create-release]
-    if: failure()
-    steps:
-      - name: Checkout source code
-        uses: actions/checkout@v7
-
-      - name: Send error notification
-        uses: proDreams/actions-telegram-notifier@main
-        with:
-          token: ${{ secrets.TELEGRAM_TOKEN }}
-          chat_id: ${{ secrets.TELEGRAM_CHAT_ID }}
-          thread_id: ${{ secrets.TELEGRAM_TOPIC_ID }}
-          status: failure
-          notify_fields: 'repository,branch,commit,workflow'
-          title: 'Build failed.'
+        run: docker buildx imagetools inspect ${{ env.IMAGE }}:${{ steps.meta.outputs.tag }}

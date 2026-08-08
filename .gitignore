@@ -71,3 +71,5 @@ prisma/generated/types.ts
 
 frontend/
 f.json
+# Frontend release zip pulled into the build context by scripts/fetch-frontend.sh
+frontend.zip
