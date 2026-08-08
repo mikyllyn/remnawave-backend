@@ -96,6 +96,13 @@ const XHTTP_FIELD_MAP: [string, string, boolean?][] = [
     ['uplinkHTTPMethod', 'uplink-http-method'],
     ['sessionIDPlacement', 'session-placement'],
     ['sessionIDKey', 'session-key'],
+    // The Fedarisha core spells these two without the ID infix. Upstream only
+    // maps the sessionID* names, so a config written against the fork lost both
+    // fields on the way into mihomo — silently, since an unmapped key is just
+    // dropped. Kept alongside rather than instead of the upstream spelling so
+    // configs using either naming still translate.
+    ['sessionPlacement', 'session-placement'],
+    ['sessionKey', 'session-key'],
     ['sessionIDTable', 'session-table'],
     ['sessionIDLength', 'session-length', true],
     ['seqPlacement', 'seq-placement'],
