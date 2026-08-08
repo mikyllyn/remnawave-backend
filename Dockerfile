@@ -28,6 +28,12 @@ COPY rspack.config.mjs ./
 COPY prisma.config.ts ./prisma.config.ts
 COPY @types ./@types
 
+# Must land before npm ci: the postinstall hook runs patch-package, and with no
+# patches/ directory present it is a silent no-op. The patches widen xray-typed
+# and @remnawave/node-contract to know about the fedarisha protocol, and rspack
+# does typecheck, so without them the build fails on the fedarisha branches.
+COPY patches ./patches
+
 RUN npm ci --prefer-offline --no-audit --no-fund
 
 COPY tsconfig*.json ./
