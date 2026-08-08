@@ -23,7 +23,7 @@ exist first:
 2. **backend** — tag `3.2.1-fed.1`. Pulls the frontend release using the
    built-in `GITHUB_TOKEN`; no extra secret is needed while both repos are
    public.
-3. **node** — tag `3.0.0-fed.1`.
+3. **node** — tag `3.0.0-fed.2`.
 4. **subscription-page** — tag `8.0.0-fed.1`.
 
 Each workflow also accepts `workflow_dispatch` if you would rather not tag.
@@ -63,7 +63,7 @@ services:
   remnawave-subscription-page:
     image: ghcr.io/mikyllyn/remnawave-subscription-page:8.0.0-fed.1
   remnanode:
-    image: ghcr.io/mikyllyn/remnawave-node:3.0.0-fed.1
+    image: ghcr.io/mikyllyn/remnawave-node:3.0.0-fed.2
 ```
 
 ## Upgrading from the 2.8-based Fedarisha build
@@ -84,10 +84,11 @@ Read this before pulling — 3.0.0 is a breaking release.
   sub-credential, and the superseded keys stay behind on the S3 provider.
   Sweep them manually in the Selectel/VK console once the panel is healthy.
 - **Xray core.** The node image pins the Fedarisha core via `XRAY_CORE_REPO` /
-  `XRAY_CORE_VERSION` build args, currently `v26.6.1-fed.2`. Upstream node 3.0.0
-  ships Xray `v26.7.28`; the Fedarisha fork has that revision on `main` but has
-  not tagged a release for it. To close the gap, sync `Xray-core-fedarisha`,
-  tag it, and repin those build args.
+  `XRAY_CORE_VERSION`, currently `mikyllyn/Xray-core-fedarisha` at
+  `v26.7.28-fed.1` — the Xray version upstream node 3.0.0 expects. That tag was
+  cut in our own fork because Fedarisha has published no core release since
+  `v26.6.1-fed.2` (17 Jun) despite carrying the newer revision on `main`. When
+  they do tag again, point the build args back at their repo.
 
 ## CI notes
 
