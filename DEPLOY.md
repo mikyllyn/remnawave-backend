@@ -20,9 +20,9 @@ exist first:
 
 1. **frontend** — tag `3.2.1-fed.1`, or run *Release frontend* manually. Produces
    `remnawave-frontend.zip` on a GitHub release.
-2. **backend** — tag `3.2.1-fed.1`. Needs a `FRONTEND_READ_TOKEN` repository
-   secret: a PAT with read access to the private frontend repo, because the
-   built-in `GITHUB_TOKEN` is scoped to a single repository.
+2. **backend** — tag `3.2.1-fed.1`. Pulls the frontend release using the
+   built-in `GITHUB_TOKEN`; no extra secret is needed while both repos are
+   public.
 3. **node** — tag `3.0.0-fed.1`.
 4. **subscription-page** — tag `8.0.0-fed.1`.
 
@@ -36,20 +36,19 @@ first — the Dockerfile expects it there:
 docker build -t remnawave-backend:local .
 ```
 
-## Pulling private images on the servers
+## Pulling the images
 
-All four repos are private, so their GHCR packages are private too and an
-anonymous `docker pull` will 404. On each server, log in once with a PAT that
-has `read:packages`:
+All four repos and their GHCR packages are public, so the servers pull
+anonymously — no `docker login` required.
+
+If a package is ever flipped back to private, each server needs a one-off login
+with a PAT carrying `read:packages`:
 
 ```sh
 echo "<PAT>" | docker login ghcr.io -u mikyllyn --password-stdin
 ```
 
-The credential lands in `/root/.docker/config.json` and survives reboots. If you
-would rather not manage tokens on the hosts, make the packages public in the
-GitHub package settings — that is independent of the repositories staying
-private.
+The credential lands in `/root/.docker/config.json` and survives reboots.
 
 ## Compose changes
 
@@ -93,9 +92,7 @@ Read this before pulling — 3.0.0 is a breaking release.
 ## CI notes
 
 - Workflows publish to GHCR only, authenticating with the built-in
-  `GITHUB_TOKEN`. No Docker Hub account or extra secret is needed, except
-  `FRONTEND_READ_TOKEN` on the backend.
-- Images are built for `linux/amd64` and `linux/arm64`. Private-repo Actions
-  minutes are metered, and the ARM runner bills at a higher rate — if every
-  server is x86, drop the `linux/arm64` entry from the matrix in each workflow
-  and halve the build cost.
+  `GITHUB_TOKEN`. No Docker Hub account and no extra secrets.
+- Images are built for `linux/amd64` and `linux/arm64`. Both runners are free
+  on public repositories, so the second architecture costs nothing; drop the
+  `linux/arm64` matrix entry if you ever want faster builds.

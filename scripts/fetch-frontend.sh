@@ -1,10 +1,10 @@
 #!/bin/sh
 # Fetch the frontend release zip into the build context.
 #
-# The backend image bundles a prebuilt frontend rather than compiling one. Our
-# frontend repo is private, so this uses `gh` (already authenticated) instead of
-# a bare curl — private release assets are not served from the
-# /releases/latest/download/ redirect that public repos get.
+# The backend image bundles a prebuilt frontend rather than compiling one. This
+# goes through `gh` rather than a bare curl so it keeps working if the frontend
+# repo is ever made private again: private release assets are only reachable
+# through the API asset endpoint, not the /releases/latest/download/ redirect.
 #
 # Usage: ./scripts/fetch-frontend.sh [tag]     (default: latest release)
 
