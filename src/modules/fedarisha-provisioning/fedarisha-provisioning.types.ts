@@ -21,6 +21,12 @@ export interface IFedarishaInboundContext {
 }
 
 export interface IEnsureCredentialsInput {
+    // The node mints its S3 sub-credential under `<userUuid>-<sha1(inboundTag)>`
+    // and its contract validates this as a real UUID. Remnawave 3.0.0 dropped the
+    // users.uuid column that used to fill this, so vlessUuid — the remaining
+    // per-user UUID — takes over. Handles derived from the old column can no
+    // longer be recomputed, so PAKs issued before the 3.x upgrade are re-minted
+    // on first probe and their predecessors have to be swept on the S3 side.
     userUuid: string;
     inbound: IFedarishaInboundContext;
 }

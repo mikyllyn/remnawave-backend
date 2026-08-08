@@ -1,5 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 
+import { HostWithRawInbound } from '@modules/hosts/entities/host-with-inbound-tag.entity';
+
 import { SUBSCRIPTION_CONFIG_TYPES } from './constants/config-types';
 import { ClashGeneratorService } from './generators/clash.generator.service';
 import { MihomoGeneratorService } from './generators/mihomo.generator.service';

@@ -174,8 +174,8 @@ export class ResolveProxyConfigService {
             seen.add(host.inboundTag);
 
             const outbound = await this.fedarishaSubscriptionService.buildOutboundForHost({
-                userId: user.tId,
-                userUuid: user.uuid,
+                userId: user.id,
+                userUuid: user.vlessUuid,
                 inboundTag: host.inboundTag,
                 configProfileInboundUuid: host.configProfileInboundUuid,
                 configProfileUuid: host.configProfileUuid,

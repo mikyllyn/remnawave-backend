@@ -64,10 +64,10 @@ export class FedarishaProvisioningEvents {
 
     private async handle(event: UserEvent, reason: string): Promise<void> {
         try {
-            await this.provisioning.revokeForUser(event.user.tId, event.user.uuid);
+            await this.provisioning.revokeForUser(event.user.id, event.user.vlessUuid);
         } catch (error) {
             this.logger.warn(
-                `Fedarisha PAK revoke failed for user ${event.user.uuid} (${reason}): ${error}`,
+                `Fedarisha PAK revoke failed for user ${event.user.id} (${reason}): ${error}`,
             );
         }
     }
@@ -75,10 +75,10 @@ export class FedarishaProvisioningEvents {
     private async maybeEnsure(event: UserEvent, reason: string): Promise<void> {
         if (event.user.status !== USERS_STATUS.ACTIVE) return;
         try {
-            await this.provisioning.ensureForUser(event.user.tId, event.user.uuid);
+            await this.provisioning.ensureForUser(event.user.id, event.user.vlessUuid);
         } catch (error) {
             this.logger.warn(
-                `Fedarisha PAK ensure failed for user ${event.user.uuid} (${reason}): ${error}`,
+                `Fedarisha PAK ensure failed for user ${event.user.id} (${reason}): ${error}`,
             );
         }
     }

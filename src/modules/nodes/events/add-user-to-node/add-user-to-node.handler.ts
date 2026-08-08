@@ -101,7 +101,7 @@ export class AddUserToNodeHandler implements IEventHandler<AddUserToNodeEvent> {
                         case 'fedarisha':
                             return {
                                 type: inboundType,
-                                username: tId.toString(),
+                                username: id.toString(),
                                 tag: inbound.tag,
                             };
                         default:
