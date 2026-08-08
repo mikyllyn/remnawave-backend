@@ -1,13 +1,12 @@
 name: Build & Push Docker Image
 
-# Publishes ghcr.io/<owner>/remnawave-backend. The repo is private, so the
-# resulting package is private too and the panel host needs a pull token — see
-# DEPLOY.md at the repo root.
+# Publishes ghcr.io/<owner>/remnawave-backend — see DEPLOY.md at the repo root.
 #
 # The image bundles a prebuilt frontend, pulled from the frontend repo's latest
-# release. That repo is private, so this needs a PAT with read access to it in
-# the FRONTEND_READ_TOKEN secret; the built-in GITHUB_TOKEN is scoped to this
-# repository only. Publish the frontend release before building the backend.
+# release, so publish that release before building the backend. Both repos are
+# public, so the built-in GITHUB_TOKEN can read across them and no PAT is
+# needed; if the frontend ever goes private again, this step needs a token with
+# read access to it, since GITHUB_TOKEN is scoped to this repository alone.
 
 on:
   push:
@@ -53,12 +52,8 @@ jobs:
 
       - name: Fetch frontend release into the build context
         env:
-          GH_TOKEN: ${{ secrets.FRONTEND_READ_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          if [ -z "${GH_TOKEN:-}" ]; then
-            echo "::error::FRONTEND_READ_TOKEN is not set — it needs read access to $FRONTEND_REPO"
-            exit 1
-          fi
           gh release download ${{ github.event.inputs.frontend_tag }} \
             --repo "$FRONTEND_REPO" \
             --pattern 'remnawave-frontend.zip' \
