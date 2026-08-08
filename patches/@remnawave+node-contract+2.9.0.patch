@@ -1,0 +1,29 @@
+diff --git a/node_modules/@remnawave/node-contract/build/commands/handler/add-user.command.d.ts b/node_modules/@remnawave/node-contract/build/commands/handler/add-user.command.d.ts
+index d131b3b..fd7dece 100644
+--- a/node_modules/@remnawave/node-contract/build/commands/handler/add-user.command.d.ts
++++ b/node_modules/@remnawave/node-contract/build/commands/handler/add-user.command.d.ts
+@@ -42,6 +42,10 @@ export declare namespace AddUserCommand {
+             tag: z.ZodString;
+             username: z.ZodString;
+             password: z.ZodString;
++        }, z.core.$strip>, z.ZodObject<{
++            type: z.ZodLiteral<"fedarisha">;
++            tag: z.ZodString;
++            username: z.ZodString;
+         }, z.core.$strip>], "type">>;
+         hashData: z.ZodObject<{
+             vlessUuid: z.ZodUUID;
+diff --git a/node_modules/@remnawave/node-contract/build/commands/handler/add-users.command.d.ts b/node_modules/@remnawave/node-contract/build/commands/handler/add-users.command.d.ts
+index de6b37b..6632f88 100644
+--- a/node_modules/@remnawave/node-contract/build/commands/handler/add-users.command.d.ts
++++ b/node_modules/@remnawave/node-contract/build/commands/handler/add-users.command.d.ts
+@@ -23,6 +23,9 @@ export declare namespace AddUsersCommand {
+             }, z.core.$strip>, z.ZodObject<{
+                 type: z.ZodLiteral<"hysteria">;
+                 tag: z.ZodString;
++            }, z.core.$strip>, z.ZodObject<{
++                type: z.ZodLiteral<"fedarisha">;
++                tag: z.ZodString;
+             }, z.core.$strip>], "type">>;
+             userData: z.ZodObject<{
+                 userId: z.ZodString;

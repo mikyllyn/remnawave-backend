@@ -247,7 +247,7 @@ export class XRayConfig {
 
     private userHashForInbound(inbound: InboundConfig, user: UserForConfigEntity): string {
         if (inbound.protocol === 'fedarisha') {
-            return user.tId.toString();
+            return user.id.toString();
         }
 
         return user.vlessUuid;
@@ -291,8 +291,8 @@ export class XRayConfig {
 
                 for (const user of users) {
                     inbound.settings.clients.push({
-                        id: user.tId.toString(),
-                        email: user.tId.toString(),
+                        id: user.id.toString(),
+                        email: user.id.toString(),
                     });
                 }
                 break;
