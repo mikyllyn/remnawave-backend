@@ -100,6 +100,18 @@ Read this before pulling — 3.0.0 is a breaking release.
   column cannot be recomputed: on first probe each user is issued a fresh
   sub-credential, and the superseded keys stay behind on the S3 provider.
   Sweep them manually in the Selectel/VK console once the panel is healthy.
+- **WireGuard outbounds need `"noKernelTun": true`.** Xray gained a kernel TUN
+  path for WireGuard and made it the default, so a core new enough to have it
+  now tries `net.ipv4.conf.all.rp_filter=0` on startup. `/proc/sys` is read-only
+  in the container, the write is unconditional, and the failure is fatal — xray
+  refuses to start at all, which takes down every inbound, not just WARP. The
+  node logs `failed to disable ipv4 rp_filter for all`. Setting the sysctl on
+  the host does not help: the code writes regardless of the current value.
+  Adding `"noKernelTun": true` to each wireguard outbound restores the userspace
+  netstack behaviour the older core had. The alternative — bind-mounting
+  `/proc/sys/net` read-write into the node — buys back kernel-mode performance
+  but, under `network_mode: host`, lets xray disable reverse path filtering on
+  the host globally.
 - **Xray core.** The node image pins the Fedarisha core via `XRAY_CORE_REPO` /
   `XRAY_CORE_VERSION`, currently `mikyllyn/Xray-core-fedarisha` at
   `v26.7.28-fed.1` — the Xray version upstream node 3.0.0 expects. That tag was
