@@ -1,15 +1,20 @@
 FROM alpine:3.19 AS frontend
 WORKDIR /opt/frontend
 
-ARG BRANCH=main
-ARG FRONTEND_URL=https://github.com/remnawave/frontend/releases/latest/download/remnawave-frontend.zip
+# Schema assets the frontend bundle expects at runtime; kept in step with upstream.
 ARG SINGBOX_SCHEMA_URL=https://github.com/BlackDuty/sing-box-schema/releases/download/v1.13.13/schema.json
 ARG MIHOMO_SCHEMA_URL=https://github.com/dongchengjie/meta-json-schema/releases/download/v1.19.29/meta-json-schema.json
 
-RUN --mount=type=secret,id=clone_token apk add --no-cache curl unzip ca-certificates \
-    && AUTH_HEADER="" \
-    && if [ -s /run/secrets/clone_token ]; then AUTH_HEADER="Authorization: token $(cat /run/secrets/clone_token)"; fi \
-    && curl -fL -H "$AUTH_HEADER" ${FRONTEND_URL} -o frontend.zip \
+# Upstream curls the frontend zip from its own releases here. This fork builds the
+# frontend from mikyllyn/remnawave-frontend instead, and hands the zip over through
+# the build context rather than fetching it inside the build:
+#
+#     ./scripts/fetch-frontend.sh [tag]
+#
+# CI does the same via `gh release download` — see build-and-push.yml.
+COPY frontend.zip ./frontend.zip
+
+RUN apk add --no-cache curl unzip ca-certificates \
     && unzip frontend.zip -d frontend_temp \
     && curl -L https://validator.remna.dev/wasm_exec.js -o frontend_temp/dist/assets/wasm_exec.js \
     && curl -L https://validator.remna.dev/xray.schema.json -o frontend_temp/dist/assets/xray.schema.json \
