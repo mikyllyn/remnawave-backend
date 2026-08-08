@@ -76,12 +76,20 @@ services:
 
 Read this before pulling — 3.0.0 is a breaking release.
 
-- **No new environment variables.** `APP_SECRET` became required outright where
-  2.8 declared it optional, but the JWT module already read it through
-  `getOrThrow` back then, so any working 2.8 install already sets it. Nothing
-  else in the env schema gained a requirement. The container entrypoint just
-  runs `prisma migrate deploy` and the seeder — there is no acknowledgement flag
-  gating startup.
+- **`JWT_AUTH_SECRET` is now `APP_SECRET`.** Coming from a 2.7.x base — which is
+  what the Fedarisha fork was built on — this is the one env change that will
+  stop the panel dead: 2.7.4 signed tokens with `JWT_AUTH_SECRET` and had no
+  `APP_SECRET` at all, while 3.x reads only `APP_SECRET`. Set it to the *same
+  value* as the old `JWT_AUTH_SECRET`, since that key signed the subscription
+  page's `REMNAWAVE_API_TOKEN` and every issued API token; a fresh secret
+  invalidates all of them. Leaving the old variable in place is harmless.
+  (2.8 already used `APP_SECRET`, so installs coming from there are unaffected.)
+  Nothing else in the env schema gained a requirement, and there is no
+  acknowledgement flag gating startup — the entrypoint just runs
+  `prisma migrate deploy` and the seeder.
+- **The migration runs before the app validates its env.** A panel that dies on
+  a config error has *already* migrated the database, so rolling back to the old
+  image will not work at that point — only restoring the dump will.
 - **Back up the database first.** The migration renames `users.t_id` to
   `users.id` and drops `users.uuid` outright. It is not reversible by
   downgrading the image.
