@@ -13,6 +13,12 @@ the Fedarisha downstream changes:
 Panel, frontend and node move together — the 3.x panel will not drive a 2.x
 node. The subscription page is looser but is on 8.0.0 here regardless.
 
+On top of the Fedarisha changes, the backend also carries a mihomo generator
+fix: `XHTTP_FIELD_MAP` now maps `sessionPlacement` / `sessionKey` as well as the
+upstream `sessionID*` spelling, so XHTTP configs written against the Fedarisha
+core keep those fields when rendered for mihomo. It used to live as a `sed` over
+the compiled JS in a layer on top of `voltara13/backend:dev`.
+
 ## Build order
 
 The backend image bundles a prebuilt frontend, so the frontend release has to
@@ -20,7 +26,7 @@ exist first:
 
 1. **frontend** — tag `3.2.1-fed.1`, or run *Release frontend* manually. Produces
    `remnawave-frontend.zip` on a GitHub release.
-2. **backend** — tag `3.2.1-fed.1`. Pulls the frontend release using the
+2. **backend** — tag `3.2.1-fed.2`. Pulls the frontend release using the
    built-in `GITHUB_TOKEN`; no extra secret is needed while both repos are
    public.
 3. **node** — tag `3.0.0-fed.2`.
@@ -59,7 +65,7 @@ are.
 # panel host
 services:
   remnawave:
-    image: ghcr.io/mikyllyn/remnawave-backend:3.2.1-fed.1
+    image: ghcr.io/mikyllyn/remnawave-backend:3.2.1-fed.2
   remnawave-subscription-page:
     image: ghcr.io/mikyllyn/remnawave-subscription-page:8.0.0-fed.1
   remnanode:
@@ -70,9 +76,12 @@ services:
 
 Read this before pulling — 3.0.0 is a breaking release.
 
-- **Acknowledge the breaking changes.** 3.0.0 refuses to start without the
-  acknowledgement environment variable; the panel logs the exact name and value
-  on first boot.
+- **No new environment variables.** `APP_SECRET` became required outright where
+  2.8 declared it optional, but the JWT module already read it through
+  `getOrThrow` back then, so any working 2.8 install already sets it. Nothing
+  else in the env schema gained a requirement. The container entrypoint just
+  runs `prisma migrate deploy` and the seeder — there is no acknowledgement flag
+  gating startup.
 - **Back up the database first.** The migration renames `users.t_id` to
   `users.id` and drops `users.uuid` outright. It is not reversible by
   downgrading the image.
