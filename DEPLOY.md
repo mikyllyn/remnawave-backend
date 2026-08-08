@@ -29,7 +29,7 @@ exist first:
 2. **backend** — tag `3.2.1-fed.2`. Pulls the frontend release using the
    built-in `GITHUB_TOKEN`; no extra secret is needed while both repos are
    public.
-3. **node** — tag `3.0.0-fed.2`.
+3. **node** — tag `3.0.0-fed.3`.
 4. **subscription-page** — tag `8.0.0-fed.1`.
 
 Each workflow also accepts `workflow_dispatch` if you would rather not tag.
@@ -69,7 +69,7 @@ services:
   remnawave-subscription-page:
     image: ghcr.io/mikyllyn/remnawave-subscription-page:8.0.0-fed.1
   remnanode:
-    image: ghcr.io/mikyllyn/remnawave-node:3.0.0-fed.2
+    image: ghcr.io/mikyllyn/remnawave-node:3.0.0-fed.3
 ```
 
 ## Upgrading from the 2.8-based Fedarisha build
@@ -107,17 +107,26 @@ Read this before pulling — 3.0.0 is a breaking release.
   refuses to start at all, which takes down every inbound, not just WARP. The
   node logs `failed to disable ipv4 rp_filter for all`. Setting the sysctl on
   the host does not help: the code writes regardless of the current value.
-  Adding `"noKernelTun": true` to each wireguard outbound restores the userspace
-  netstack behaviour the older core had. The alternative — bind-mounting
+  Add `"noKernelTun": true` **inside the outbound's `settings` object**, next to
+  `secretKey` — at the outbound level, alongside `tag` and `protocol`, xray
+  silently ignores it and still picks kernel mode. Confirm it took by grepping
+  the node's xray log for `TUN`: `Using gVisor TUN` means the flag landed,
+  `Using kernel TUN` means it did not. The alternative — bind-mounting
   `/proc/sys/net` read-write into the node — buys back kernel-mode performance
   but, under `network_mode: host`, lets xray disable reverse path filtering on
   the host globally.
-- **Xray core.** The node image pins the Fedarisha core via `XRAY_CORE_REPO` /
-  `XRAY_CORE_VERSION`, currently `mikyllyn/Xray-core-fedarisha` at
-  `v26.7.28-fed.1` — the Xray version upstream node 3.0.0 expects. That tag was
-  cut in our own fork because Fedarisha has published no core release since
-  `v26.6.1-fed.2` (17 Jun) despite carrying the newer revision on `main`. When
-  they do tag again, point the build args back at their repo.
+- **Do not move the Xray core ahead of the clients.** The node pins
+  `v26.6.1-fed.2` on purpose, even though node 3.0.0 nominally expects Xray
+  `v26.7.28`. Building the newer core and deploying it was tried and reverted:
+  every REALITY client was rejected — stock Happ and mihomo included — with
+  `authentication failed or validation criteria not met` in the node's xray log,
+  while the node came up clean and the panel showed it connected. REALITY binds
+  the client's version into the authenticated part of the handshake and the
+  server can gate on a minimum version, so server and client implementations
+  have to stay compatible; a core newer than what the clients ship is a break,
+  not an upgrade. Third-party clients follow upstream at their own pace, so
+  moving the core means rebuilding the clients from the matching fed revision
+  and proving it on one device before switching any node.
 
 ## CI notes
 
