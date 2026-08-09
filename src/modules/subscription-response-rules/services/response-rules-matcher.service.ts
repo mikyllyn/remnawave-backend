@@ -183,6 +183,7 @@ export class ResponseRulesMatcherService {
             case REQUEST_TEMPLATE_TYPE.SINGBOX:
                 matchedResponse.responseType = SUBSCRIPTION_TEMPLATE_TYPE.SINGBOX;
                 break;
+            case REQUEST_TEMPLATE_TYPE.FEDARISHA_MIHOMO:
             case REQUEST_TEMPLATE_TYPE.MIHOMO:
                 matchedResponse.responseType = SUBSCRIPTION_TEMPLATE_TYPE.MIHOMO;
                 break;

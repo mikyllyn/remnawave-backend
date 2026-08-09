@@ -68,8 +68,11 @@ interface ProxyNode {
     name: string;
     network?: string;
     password?: string;
-    port: number;
-    server: string;
+    // Optional because fedarisha nodes have neither: that transport rendezvouses
+    // through an S3 bucket, so there is no address to dial. Every other protocol
+    // sets all three, and they are all built in buildProxyNode.
+    port?: number;
+    server?: string;
     servername?: string;
     'skip-cert-verify'?: boolean;
     'packet-encoding'?: string;
@@ -77,7 +80,7 @@ interface ProxyNode {
     sni?: string;
     tls?: boolean;
     type: string;
-    udp: boolean;
+    udp?: boolean;
     uuid?: string;
     serverDescription?: string;
 }
@@ -183,6 +186,10 @@ export class MihomoGeneratorService {
             return this.buildHysteria2Node(host, isExtendedClient);
         }
 
+        if (host.protocol === 'fedarisha') {
+            return this.buildFedarishaNode(host);
+        }
+
         const node: ProxyNode = {
             name: host.finalRemark,
             type: this.resolveClashType(host.protocol),
@@ -211,6 +218,47 @@ export class MihomoGeneratorService {
                 host.clientOverrides.serverDescription,
                 'base64',
             ).toString();
+        }
+
+        return node;
+    }
+
+    // Fedarisha rides on an S3 bucket rather than a network endpoint, so the node
+    // carries credentials instead of server/port, and none of the transport,
+    // security or fingerprint machinery applies. Only the forked mihomo core
+    // understands this type; stock builds are never offered these hosts, because
+    // the capability gate upstream drops them for clients that cannot ask for it.
+    private buildFedarishaNode(host: ResolvedProxyConfig): ProxyNode | null {
+        if (host.protocol !== 'fedarisha') return null;
+
+        const { storage, tuning } = host.protocolOptions;
+
+        const node: ProxyNode = {
+            name: host.finalRemark,
+            type: 'fedarisha',
+            storage: {
+                type: storage.type,
+                bucket: storage.bucket,
+                endpoint: storage.endpoint,
+                region: storage.region,
+                prefix: storage.prefix,
+                'access-key': storage.accessKey,
+                'secret-key': storage.secretKey,
+                ...(storage.sessionsDir ? { 'sessions-dir': storage.sessionsDir } : {}),
+            },
+        };
+
+        // Tuning is optional on both sides; only forward the values that are set
+        // so the core keeps its own defaults for the rest.
+        if (tuning) {
+            const t: Record<string, number> = {};
+            if (tuning.pollIntervalMs) t['poll-interval-ms'] = tuning.pollIntervalMs;
+            if (tuning.writeIntervalMs) t['write-interval-ms'] = tuning.writeIntervalMs;
+            if (tuning.idleTimeoutSec) t['idle-timeout-sec'] = tuning.idleTimeoutSec;
+            if (tuning.maxFileSizeBytes) t['max-file-size-bytes'] = tuning.maxFileSizeBytes;
+            if (Object.keys(t).length > 0) {
+                node.tuning = t;
+            }
         }
 
         return node;
