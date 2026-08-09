@@ -84,7 +84,13 @@ export class ResponseRulesMiddleware implements NestMiddleware {
                     userAgent,
                     result.matchedRule?.responseModifications?.additionalExtendedClientsRegex,
                 ),
-                supportsFedarisha: overrideClientType === REQUEST_TEMPLATE_TYPE.FEDARISHA_JSON,
+                // Fedarisha hosts are filtered out for every client that cannot
+                // speak the S3 transport, so the capability is opted into by
+                // asking for one of the fedarisha paths explicitly — xray JSON
+                // for the forked v2rayNG, mihomo YAML for the forked core.
+                supportsFedarisha:
+                    overrideClientType === REQUEST_TEMPLATE_TYPE.FEDARISHA_JSON ||
+                    overrideClientType === REQUEST_TEMPLATE_TYPE.FEDARISHA_MIHOMO,
                 matchedResponseType: result.responseType,
                 matchedRuleName: result.matchedRule?.name,
                 ip: req.clientIp,

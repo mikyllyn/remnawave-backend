@@ -4,6 +4,7 @@ export const REQUEST_TEMPLATE_TYPE = {
     MIHOMO: 'mihomo',
     XRAY_JSON: 'json',
     FEDARISHA_JSON: 'fedarisha-json',
+    FEDARISHA_MIHOMO: 'fedarisha-mihomo',
     V2RAY_JSON: 'v2ray-json',
     CLASH: 'clash',
 } as const;
