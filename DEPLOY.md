@@ -5,9 +5,9 @@ the Fedarisha downstream changes:
 
 | Repo | Branch | Upstream base | Image |
 |---|---|---|---|
-| `remnawave-backend` | `fed-3.2.1` | 3.2.1 | `ghcr.io/mikyllyn/remnawave-backend` |
-| `remnawave-frontend` | `fed-3.2.1` | 3.2.1 | release zip, bundled into the backend image |
-| `remnawave-node` | `fed-3.0.0` | 3.0.0 | `ghcr.io/mikyllyn/remnawave-node` |
+| `remnawave-backend` | `fed-3.4.3` | 3.4.3 | `ghcr.io/mikyllyn/remnawave-backend` |
+| `remnawave-frontend` | `fed-3.4.3` | 3.4.3 | release zip, bundled into the backend image |
+| `remnawave-node` | `fed-3.4.1` | 3.4.1 | `ghcr.io/mikyllyn/remnawave-node` |
 | `remnawave-subscription-page` | `fed-8.0.0` | 8.0.0 | `ghcr.io/mikyllyn/remnawave-subscription-page` |
 
 Panel, frontend and node move together — the 3.x panel will not drive a 2.x
@@ -24,13 +24,14 @@ the compiled JS in a layer on top of `voltara13/backend:dev`.
 The backend image bundles a prebuilt frontend, so the frontend release has to
 exist first:
 
-1. **frontend** — tag `3.2.1-fed.1`, or run *Release frontend* manually. Produces
+1. **frontend** — tag `3.4.3-fed.1`, or run *Release frontend* manually. Produces
    `remnawave-frontend.zip` on a GitHub release.
-2. **backend** — tag `3.2.1-fed.2`. Pulls the frontend release using the
-   built-in `GITHUB_TOKEN`; no extra secret is needed while both repos are
-   public.
-3. **node** — tag `3.0.0-fed.3`.
-4. **subscription-page** — tag `8.0.0-fed.1`.
+2. **backend** — tag `3.4.3-fed.1`. Pulls the frontend release named in
+   `.frontend-version` using the built-in `GITHUB_TOKEN`; no extra secret is
+   needed while both repos are public. Bump that file in the same commit that
+   bumps the version, or the build fetches the wrong frontend.
+3. **node** — tag `3.4.1-fed.1`.
+4. **subscription-page** — tag `8.0.0-fed.2`.
 
 Each workflow also accepts `workflow_dispatch` if you would rather not tag.
 
@@ -38,7 +39,7 @@ To build the backend locally, fetch the frontend zip into the build context
 first — the Dockerfile expects it there:
 
 ```sh
-./scripts/fetch-frontend.sh          # or: ./scripts/fetch-frontend.sh 3.2.1-fed.1
+./scripts/fetch-frontend.sh          # or: ./scripts/fetch-frontend.sh 3.4.3-fed.1
 docker build -t remnawave-backend:local .
 ```
 
@@ -65,12 +66,51 @@ are.
 # panel host
 services:
   remnawave:
-    image: ghcr.io/mikyllyn/remnawave-backend:3.2.1-fed.2
+    image: ghcr.io/mikyllyn/remnawave-backend:3.4.3-fed.1
   remnawave-subscription-page:
-    image: ghcr.io/mikyllyn/remnawave-subscription-page:8.0.0-fed.1
+    image: ghcr.io/mikyllyn/remnawave-subscription-page:8.0.0-fed.2
   remnanode:
-    image: ghcr.io/mikyllyn/remnawave-node:3.0.0-fed.3
+    image: ghcr.io/mikyllyn/remnawave-node:3.4.1-fed.1
 ```
+
+## Upgrading from the 3.2.1-based build
+
+Nothing in the panel API was removed between 3.2.1 and 3.4.3 — the contract
+gained routes and lost none — so integrations keep working. The traps are
+elsewhere.
+
+- **Update the Bedolaga bot to v4.9.0 *before* the panel.** Older bot builds
+  have two real faults against a 3.4.3 panel. The serious one: the client
+  treated any 404 and error code `A018` as "user does not exist" and sent three
+  call sites into recreating the panel account — but a 3.4.3 panel answers 404
+  for 27 different reasons (missing external squad, internal squad, HWID device
+  …) and `A018` now means "Failed to create user". The second: a host's `tag`
+  became a `tags` array, so the cabinet's host list dies with `AttributeError`
+  on every request. Both are fixed in bot v4.9.0 (`9d78689`, `a7d023c`), and
+  that build still supports panel 3.0.0+, so it is safe to run against the
+  current 3.2.1 panel first. The cabinet moves with it — v1.73.0.
+- **Six new migrations.** `add_node_ips`, `add_host_mapper`,
+  `add_node_integrations`, `add_shared_lists`, `host_exclusion_modes`,
+  `add_entity_tags`. As always the migration runs before env validation, so
+  take the dump first; an image retag will not undo them.
+- **The node image was restructured.** Upstream moved `Dockerfile` to
+  `docker/Dockerfile` and added s6-overlay services for xray and its log. The
+  fed core pin and the image labels were ported across; nothing changes for
+  whoever is only pulling the image.
+- **Upstream now verifies the core's checksum.** The build fetches
+  `<archive>.dgst` alongside the zip and runs `sha256sum -c`. The Fedarisha core
+  publishes those files under the same names, so the check was kept rather than
+  stripped.
+- **`patch-package` filenames are version-keyed.** Upstream moved
+  `@remnawave/node-contract` to 3.4.1 and `xray-typed` to 1.2.3; the patches
+  were renamed to match. A stale filename is not an error — patch-package skips
+  it silently and the fedarisha type widenings simply vanish, surfacing much
+  later as type errors in the image build.
+- **`CUSTOM_CORE_URL` exists now, but is not what the fork uses.** The node's
+  `init-env.sh` will download a core over the built-in one when that variable is
+  set. It expects a bare executable (`wget -O /usr/local/bin/xray`), while the
+  Fedarisha releases are zips, so it is not a drop-in replacement for the forked
+  image — worth knowing before assuming the fork can be retired.
 
 ## Upgrading from the 2.8-based Fedarisha build
 
