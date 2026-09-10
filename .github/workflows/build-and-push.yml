@@ -53,8 +53,19 @@ jobs:
       - name: Fetch frontend release into the build context
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          FRONTEND_TAG_INPUT: ${{ github.event.inputs.frontend_tag }}
         run: |
-          gh release download ${{ github.event.inputs.frontend_tag }} \
+          # On a tag push there is no workflow input, and an empty tag makes
+          # `gh release download` take whatever is newest -- which silently
+          # bundles the previous frontend when the new release is not published
+          # yet. .frontend-version pins the intended one; the input overrides it.
+          tag="${FRONTEND_TAG_INPUT:-$(tr -d '[:space:]' < .frontend-version)}"
+          if [ -z "$tag" ]; then
+            echo "::error::no frontend tag: set .frontend-version or pass frontend_tag"
+            exit 1
+          fi
+          echo "Frontend tag: $tag"
+          gh release download "$tag" \
             --repo "$FRONTEND_REPO" \
             --pattern 'remnawave-frontend.zip' \
             --output frontend.zip --clobber
