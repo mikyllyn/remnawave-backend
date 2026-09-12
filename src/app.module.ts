@@ -50,6 +50,14 @@ const HASHED = /-[A-Za-z0-9_-]{8,}\.[a-z0-9]+$/i;
                 rootPath: getAssetsPath(),
                 exclude: ['/api'],
                 sirv: {
+                    // Serve the .br/.gz siblings the image builds, and answer
+                    // revalidation with 304. Without an ETag sirv has no 304 path
+                    // at all -- it never reads If-Modified-Since -- so the
+                    // `no-cache` below turns into a full re-download of every
+                    // unhashed asset on every page load. main.wasm is 56.8 MB.
+                    brotli: true,
+                    gzip: true,
+                    etag: true,
                     setHeaders(res, pathname) {
                         if (HASHED.test(pathname)) {
                             res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');

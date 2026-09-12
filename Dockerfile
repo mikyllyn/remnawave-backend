@@ -14,7 +14,7 @@ ARG MIHOMO_SCHEMA_URL=https://github.com/dongchengjie/meta-json-schema/releases/
 # CI does the same via `gh release download` — see build-and-push.yml.
 COPY frontend.zip ./frontend.zip
 
-RUN apk add --no-cache curl unzip ca-certificates \
+RUN apk add --no-cache curl unzip ca-certificates brotli \
     && unzip frontend.zip -d frontend_temp \
     && curl -L https://validator.remna.dev/wasm_exec.js -o frontend_temp/dist/assets/wasm_exec.js \
     && curl -L https://validator.remna.dev/xray.schema.json -o frontend_temp/dist/assets/xray.schema.json \
@@ -22,6 +22,19 @@ RUN apk add --no-cache curl unzip ca-certificates \
     && curl -L ${SINGBOX_SCHEMA_URL} -o frontend_temp/dist/assets/singbox.schema.json \
     && curl -L ${MIHOMO_SCHEMA_URL} -o frontend_temp/dist/assets/mihomo.schema.json \
     && curl -L https://validator.remna.dev/main.wasm -o frontend_temp/dist/assets/main.wasm
+
+# Precompress what the panel will serve. sirv picks a .br or .gz sibling when
+# the client accepts one, and takes Content-Type from the name with the suffix
+# stripped, so the module still arrives as application/wasm.
+#
+# This matters because main.wasm is 56.8 MB and its name carries no content
+# hash, so it is served `no-cache` -- and sirv has no 304 path without an ETag,
+# it never reads If-Modified-Since. Brotli takes it to 7.5 MB; quality 11 costs
+# a couple of minutes here and nothing at runtime.
+RUN find frontend_temp/dist -type f -size +4k \
+        ! -name '*.br' ! -name '*.gz' \
+        \( -name '*.wasm' -o -name '*.js' -o -name '*.css' -o -name '*.json' -o -name '*.html' -o -name '*.svg' \) \
+        -exec sh -c 'brotli -q 11 -f -o "$1.br" "$1" && gzip -9 -kf "$1"' _ {} \;
 
 FROM node:24.20-trixie-slim AS backend-build
 WORKDIR /opt/app
